@@ -36,36 +36,42 @@ const projectStore = proxy({
   },
 
 
-  async getAllProjects(
-    query = '',
-  ): Promise<[TProject[] | null, string | null]> {
-    this.list.loading = true;
-    this.list.error = null;
+async getAllProjects(
+  query?: Record<string, unknown>,
+): Promise<[TProject[] | null, string | null]> {
 
-    let resp: [TProject[] | null, string | null] = [null, null];
 
-    try {
-      const res = await $axios.get(`/projects${query}`);
-      const payload = res.data?.data;
+  if (this.list.loading) {
+    return [this.list.data, null];
+  }
 
-      if (payload?.result) {
-        this.list.data = payload.result;
-        this.list.meta = payload.meta;
-        resp = [payload.result, null];
-      }
-    } catch (err: any) {
-      const message =
-        err.response?.data?.message || 'Failed to fetch projects';
+  this.list.loading = true;
+  this.list.error = null;
 
-      this.list.data = [];
-      this.list.error = message;
-      resp = [null, message];
-    } finally {
-      this.list.loading = false;
-      this.list.requestsMade += 1;
-      return resp;
+  let resp: [TProject[] | null, string | null] = [null, null];
+
+  try {
+    const res = await $axios.get('/projects', { params: query });
+    const payload = res.data;
+
+    if (payload?.data) {
+      this.list.data = payload.data;  
+      this.list.meta = payload.meta;
+      resp = [payload.data, null];
     }
-  },
+  } catch (err: any) {
+    const message =
+      err.response?.data?.message || 'Failed to fetch projects';
+
+    this.list.error = message;
+    resp = [null, message];
+  } finally {
+    this.list.loading = false;
+    this.list.requestsMade += 1;
+    return resp;
+  }
+},
+
 
  
   async getSingleProject(
@@ -79,6 +85,8 @@ const projectStore = proxy({
     try {
       const res = await $axios.get(`/projects/${projectId}`);
       const data: TProject | undefined = res.data?.data;
+
+      console.log(data, 'single project');
 
       if (data) {
         this.single.data = data;
@@ -198,6 +206,16 @@ const projectStore = proxy({
     }
   },
 
+
+
+getStats() {
+  const total = this.list.data.length;
+  const active = this.list.data.filter(
+    (p) => p.status === 'active',
+  ).length;
+
+  return { total, active };
+},
 
 
   reset() {

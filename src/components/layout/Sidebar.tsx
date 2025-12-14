@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -27,19 +28,18 @@ export default function Sidebar() {
       <nav className="px-2 space-y-1">
         <NavItem href="/dashboard" label="Dashboard" />
 
-        {/* Admin/Manager */}
         {(user?.role === 'admin' || user?.role === 'manager') && (
           <>
-            <NavItem href="/projects" label="Projects" />
-            <NavItem href="/reports" label="Reports" />
+            <NavItem href="/dashboard/projects" label="Projects" />
+            <NavItem href="/dashboard/reports" label="Reports" />
           </>
         )}
 
-        {/* Member */}
         {user?.role === 'member' && (
-          <>
-            <NavItem href="/dashboard?view=my-tasks" label="My Tasks" />
-          </>
+          <NavItem
+            href="/dashboard?view=my-tasks"
+            label="My Tasks"
+          />
         )}
       </nav>
     </aside>

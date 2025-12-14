@@ -76,6 +76,8 @@ const authStore = proxy({
 
     try {
       const res = await $axios.get('/users/me');
+
+      console.log(res)
       const data: TAuthUser | undefined =
         res.data?.data || res.data;
 
