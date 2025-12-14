@@ -64,7 +64,7 @@ export default function CreateSprintModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>Create Sprint</Button>
+        <Button className='cursor-pointer'>Create Sprint</Button>
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md">

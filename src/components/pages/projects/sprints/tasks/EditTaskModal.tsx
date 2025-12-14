@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSnapshot } from 'valtio';
 import { toast } from 'react-toastify';
@@ -8,14 +8,13 @@ import { toast } from 'react-toastify';
 import { taskStore } from '@/store/taskStore';
 import { userStore } from '@/store/userStore';
 
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -37,23 +36,28 @@ type FormData = {
   assignees: string[];
 };
 
-export default function CreateTaskModal({
-  sprintId,
+export default function EditTaskModal({
+  open,
+  task,
+  onClose,
 }: {
-  sprintId: string;
+  open: boolean;
+  task: any;
+  onClose: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const usersSnap = useSnapshot(userStore);
 
   const form = useForm<FormData>({
     defaultValues: {
-      title: '',
-      description: '',
-      estimateHours: undefined,
-      priority: 'medium',
-      status: 'todo',
-      dueDate: '',
-      assignees: [],
+      title: task.title,
+      description: task.description,
+      estimateHours: task.estimateHours,
+      priority: task.priority,
+      status: task.status,
+      dueDate: task.dueDate
+        ? task.dueDate.split('T')[0]
+        : '',
+      assignees: task.assignees?.map((u: any) => u._id) || [],
     },
   });
 
@@ -63,51 +67,43 @@ export default function CreateTaskModal({
 
   const onSubmit = async (data: FormData) => {
     try {
-      await taskStore.createTask({
-        ...data,
-        sprintId,
-      });
-
-      toast.success('Task created successfully');
-      setOpen(false);
-      form.reset();
+      await taskStore.updateTask(task._id, data);
+      toast.success('Task updated successfully');
+      onClose();
     } catch (err: any) {
       toast.error(
         err?.response?.data?.message ||
-          'Failed to create task',
+          'Failed to update task',
       );
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          + Add Task
-        </Button>
-      </DialogTrigger>
-
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Task</DialogTitle>
+          <DialogTitle>Edit Task</DialogTitle>
         </DialogHeader>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="space-y-4"
         >
-          <div>
+          {/* TITLE */}
+          <div className="space-y-1">
             <Label>Title</Label>
             <Input {...form.register('title', { required: true })} />
           </div>
 
-          <div>
+          {/* DESCRIPTION */}
+          <div className="space-y-1">
             <Label>Description</Label>
             <Textarea {...form.register('description')} />
           </div>
 
-          <div>
-            <Label>Estimate (hours)</Label>
+          {/* ESTIMATE */}
+          <div className="space-y-1">
+            <Label>Estimate Hours</Label>
             <Input
               type="number"
               {...form.register('estimateHours', {
@@ -116,7 +112,8 @@ export default function CreateTaskModal({
             />
           </div>
 
-          <div>
+          {/* PRIORITY */}
+          <div className="space-y-1">
             <Label>Priority</Label>
             <Select
               value={form.watch('priority')}
@@ -124,7 +121,9 @@ export default function CreateTaskModal({
                 form.setValue('priority', v as any)
               }
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">Low</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
@@ -133,7 +132,8 @@ export default function CreateTaskModal({
             </Select>
           </div>
 
-          <div>
+          {/* STATUS */}
+          <div className="space-y-1">
             <Label>Status</Label>
             <Select
               value={form.watch('status')}
@@ -141,24 +141,31 @@ export default function CreateTaskModal({
                 form.setValue('status', v as any)
               }
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="inprogress">In Progress</SelectItem>
+                <SelectItem value="inprogress">
+                  In Progress
+                </SelectItem>
                 <SelectItem value="review">Review</SelectItem>
                 <SelectItem value="done">Done</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div>
+          {/* DUE DATE */}
+          <div className="space-y-1">
             <Label>Due Date</Label>
             <Input type="date" {...form.register('dueDate')} />
           </div>
 
-          <div>
-            <Label>Assign Users</Label>
-            <div className="border rounded p-2 max-h-40 overflow-auto space-y-1">
+          {/* ASSIGNEES */}
+          <div className="space-y-2">
+            <Label>Assignees</Label>
+
+            <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
               {usersSnap.list.map((user) => (
                 <label
                   key={user._id}
@@ -166,25 +173,34 @@ export default function CreateTaskModal({
                 >
                   <input
                     type="checkbox"
-                    checked={form.watch('assignees').includes(user._id)}
+                    checked={form
+                      .watch('assignees')
+                      .includes(user._id)}
                     onChange={(e) => {
-                      const prev = form.getValues('assignees');
+                      const prev =
+                        form.getValues('assignees');
+
                       form.setValue(
                         'assignees',
                         e.target.checked
                           ? [...prev, user._id]
-                          : prev.filter((id) => id !== user._id),
+                          : prev.filter(
+                              (id) => id !== user._id,
+                            ),
                       );
                     }}
                   />
-                  {user.name} ({user.role})
+                  {user.name}{' '}
+                  <span className="text-muted-foreground">
+                    ({user.role})
+                  </span>
                 </label>
               ))}
             </div>
           </div>
 
           <Button type="submit" className="w-full">
-            Create Task
+            Save Changes
           </Button>
         </form>
       </DialogContent>
