@@ -88,6 +88,33 @@ export const taskStore = proxy({
       this.table.loading = false;
     }
   },
+  async logTaskTime(taskId: string, hours: number) {
+  const res = await $axios.patch(
+    `/tasks/${taskId}/log-time`,
+    { hours },
+  );
+
+  const updatedTask = res.data.data;
+
+  console.log('Updated Task after logging time:', updatedTask);
+
+
+  this.single = updatedTask;
+
+
+  const sprintId =
+    typeof updatedTask.sprintId === 'object'
+      ? updatedTask.sprintId._id
+      : updatedTask.sprintId;
+
+  const prev = this.listBySprint[sprintId] || [];
+  this.listBySprint[sprintId] = prev.map((t) =>
+    t._id === taskId ? updatedTask : t,
+  );
+
+  return res;
+},
+
 
   setTableFilters(patch: Partial<typeof taskStore.table.filters>) {
     this.table.filters = { ...this.table.filters, ...patch };

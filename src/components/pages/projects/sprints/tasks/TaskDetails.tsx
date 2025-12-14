@@ -1,7 +1,14 @@
 'use client';
 
+import { useState } from 'react';
+import { useSnapshot } from 'valtio';
+
+import { taskStore } from '@/store/taskStore';
+
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import LogTimeModal from '@/components/ui/logTimeModal/LogTimeModal';
 
 const STATUS_COLOR: Record<string, string> = {
   todo: 'bg-gray-200 text-gray-800',
@@ -11,65 +18,83 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function TaskDetails({ task }: { task: any }) {
+  const [logOpen, setLogOpen] = useState(false);
+  const snap = useSnapshot(taskStore);
+
+
+  const t = snap.single?._id === task._id ? snap.single : task;
+
+  const perUser: Record<string, number> = {};
+
+  (t.timeLogs || []).forEach((log: any) => {
+    let uid: string | undefined;
+
+    if (log?.userId) {
+      if (typeof log.userId === 'string') {
+        uid = log.userId;
+      } else if (log.userId?._id) {
+        uid = log.userId._id.toString();
+      }
+    }
+
+    if (!uid) return;
+
+    perUser[uid] = (perUser[uid] || 0) + Number(log.hours || 0);
+  });
+
   return (
     <div className="space-y-4">
       {/* TITLE */}
-      <h1 className="text-2xl font-semibold">{task.title}</h1>
+      <h1 className="text-2xl font-semibold">{t.title}</h1>
 
       {/* STATUS + PRIORITY */}
       <div className="flex gap-2 flex-wrap">
         <span
-          className={`px-2 py-1 rounded text-xs capitalize ${STATUS_COLOR[task.status]}`}
+          className={`px-2 py-1 rounded text-xs capitalize ${STATUS_COLOR[t.status]}`}
         >
-          {task.status}
+          {t.status}
         </span>
 
         <Badge variant="outline" className="capitalize">
-          Priority: {task.priority}
+          Priority: {t.priority}
         </Badge>
 
-        {task.sprintId && (
+        {t.sprintId && (
           <Badge variant="secondary">
-            Sprint {task.sprintId.sprintNumber}
+            Sprint {t.sprintId.sprintNumber}
           </Badge>
         )}
       </div>
 
-      {/* CONTENT GRID */}
+      {/* GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* LEFT SIDE (2 columns on desktop) */}
+        {/* LEFT */}
         <div className="lg:col-span-2 space-y-4">
-          {/* MAIN INFO */}
+          {/* DESCRIPTION */}
           <Card>
             <CardContent className="p-4 space-y-2">
-              <p>
-                <strong>Description:</strong>
-              </p>
+              <p><strong>Description:</strong></p>
               <p className="text-muted-foreground">
-                {task.description || '—'}
+                {t.description || '—'}
               </p>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <p>
                   <strong>Due Date:</strong>{' '}
-                  {task.dueDate
-                    ? new Date(task.dueDate).toLocaleDateString()
+                  {t.dueDate
+                    ? new Date(t.dueDate).toLocaleDateString()
                     : '—'}
                 </p>
-
                 <p>
-                  <strong>Estimate:</strong>{' '}
-                  {task.estimateHours || 0} hrs
+                  <strong>Estimate:</strong> {t.estimateHours || 0} hrs
                 </p>
-
                 <p>
                   <strong>Project:</strong>{' '}
-                  {task.projectId?.title || '—'}
+                  {t.projectId?.title || '—'}
                 </p>
-
                 <p>
                   <strong>Client:</strong>{' '}
-                  {task.projectId?.client || '—'}
+                  {t.projectId?.client || '—'}
                 </p>
               </div>
             </CardContent>
@@ -80,10 +105,10 @@ export default function TaskDetails({ task }: { task: any }) {
             <CardContent className="p-4 space-y-2">
               <h3 className="font-medium">Assignees</h3>
 
-              {task.assignees?.length ? (
+              {t.assignees?.length ? (
                 <ul className="text-sm space-y-1">
-                  {task.assignees.map((u: any) => (
-                    <li key={u._id}>
+                  {t.assignees.map((u: any, i: number) => (
+                    <li key={u._id?.toString() ?? `assignee-${i}`}>
                       {u.name} ({u.role})
                     </li>
                   ))}
@@ -96,44 +121,15 @@ export default function TaskDetails({ task }: { task: any }) {
             </CardContent>
           </Card>
 
-          {/* ATTACHMENTS */}
-          <Card>
-            <CardContent className="p-4 space-y-2">
-              <h3 className="font-medium">Attachments</h3>
-
-              {task.attachments?.length ? (
-                <ul className="text-sm list-disc ml-4">
-                  {task.attachments.map(
-                    (file: string, i: number) => (
-                      <li key={i}>
-                        <a
-                          href={file}
-                          target="_blank"
-                          className="text-blue-600 underline"
-                        >
-                          {file}
-                        </a>
-                      </li>
-                    ),
-                  )}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No attachments
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
           {/* SUBTASKS */}
           <Card>
             <CardContent className="p-4 space-y-2">
               <h3 className="font-medium">Subtasks</h3>
 
-              {task.subtasks?.length ? (
+              {t.subtasks?.length ? (
                 <ul className="text-sm space-y-1">
-                  {task.subtasks.map((s: any, i: number) => (
-                    <li key={i}>
+                  {t.subtasks.map((s: any, i: number) => (
+                    <li key={`${s.title}-${i}`}>
                       {s.isDone ? '✅' : '⬜'} {s.title}
                     </li>
                   ))}
@@ -147,54 +143,100 @@ export default function TaskDetails({ task }: { task: any }) {
           </Card>
         </div>
 
-        {/* RIGHT SIDE – ACTIVITY LOG */}
-  
-<div className="space-y-4">
-  <Card className="lg:sticky lg:top-4">
-    <CardContent className="p-4 space-y-3">
-      <h3 className="font-medium">Activity Log</h3>
+        {/* RIGHT */}
+        <div className="space-y-4">
+          {/* TIME TRACKING */}
+          <Card className="lg:sticky lg:top-4">
+            <CardContent className="p-4 space-y-3">
+              <h3 className="font-medium">Time Tracking</h3>
 
-      {task.activityLog?.length ? (
-        task.activityLog.map((log: any, i: number) => {
-          const user = log.userId;
+              <div className="text-sm space-y-1">
+                <p><strong>Estimated:</strong> {t.estimateHours || 0} hrs</p>
+                <p><strong>Logged:</strong> {t.loggedHours || 0} hrs</p>
+              </div>
 
-          return (
-            <div
-              key={i}
-              className="text-sm border-l-2 pl-3 space-y-0.5"
-            >
-              <p className="text-muted-foreground">
-                • {log.action}
-              </p>
+              {/* 🔥 USER-WISE BREAKDOWN */}
+              {t.assignees?.length ? (
+                <div className="pt-2 border-t space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Logged by
+                  </p>
 
-              <p className="text-xs text-muted-foreground">
-                {user?.name ? (
-                  <>
-                    <span className="font-medium text-foreground">
-                      {user.name}
-                    </span>{' '}
-                    <span className="capitalize">
-                      ({user.role})
-                    </span>
-                  </>
-                ) : (
-                  'System'
-                )}{' '}
-                —{' '}
-                {new Date(log.createdAt).toLocaleString()}
-              </p>
-            </div>
-          );
-        })
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          No activity yet
-        </p>
-      )}
-    </CardContent>
-  </Card>
-</div>
+                  <ul className="text-sm space-y-1">
+                    {t.assignees.map((u: any, i: number) => {
+                      const uid = u._id?.toString();
 
+                      return (
+                        <li
+                          key={uid ?? `log-${i}`}
+                          className="flex items-center justify-between"
+                        >
+                          <span>{u.name}</span>
+                          <span className="text-muted-foreground">
+                            {(perUser[uid] ?? 0).toFixed(2)} h
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
+
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => setLogOpen(true)}
+              >
+                + Log Time
+              </Button>
+            </CardContent>
+
+            <LogTimeModal
+              open={logOpen}
+              onClose={() => setLogOpen(false)}
+              taskId={t._id}
+            />
+          </Card>
+
+          {/* ACTIVITY LOG */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h3 className="font-medium">Activity Log</h3>
+
+              {t.activityLog?.length ? (
+                t.activityLog.map((log: any) => (
+                  <div
+                    key={`${log.userId?._id ?? 'sys'}-${log.createdAt}`}
+                    className="text-sm border-l-2 pl-3 space-y-0.5"
+                  >
+                    <p className="text-muted-foreground">
+                      • {log.action}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {log.userId?.name ? (
+                        <>
+                          <span className="font-medium text-foreground">
+                            {log.userId.name}
+                          </span>{' '}
+                          <span className="capitalize">
+                            ({log.userId.role})
+                          </span>
+                        </>
+                      ) : (
+                        'System'
+                      )}{' '}
+                      — {new Date(log.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No activity yet
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
