@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { useSnapshot } from 'valtio';
-
 import { taskStore } from '@/store/taskStore';
 
 export default function TaskList({
@@ -11,23 +10,29 @@ export default function TaskList({
   sprintId: string;
 }) {
   const snap = useSnapshot(taskStore);
+  const tasks = snap.listBySprint[sprintId] || [];
 
   useEffect(() => {
-    if (!snap.listBySprint[sprintId]) {
-      taskStore.getTasks({ sprintId });
-    }
+    taskStore.getTasks({ sprintId });
   }, [sprintId]);
-
-  const tasks = snap.listBySprint[sprintId] || [];
 
   return (
     <div className="space-y-2">
       {tasks.map((task) => (
         <div
           key={task._id}
-          className="flex justify-between border rounded p-2"
+          className="border rounded p-2 flex justify-between"
         >
-          <span>{task.title}</span>
+          <div>
+            <p className="font-medium">{task.title}</p>
+            <p className="text-xs text-muted-foreground">
+              Due:{' '}
+              {task.dueDate
+                ? new Date(task.dueDate).toLocaleDateString()
+                : '—'}
+            </p>
+          </div>
+
           <span className="capitalize text-sm">
             {task.status}
           </span>

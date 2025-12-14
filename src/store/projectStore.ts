@@ -86,7 +86,7 @@ async getAllProjects(
       const res = await $axios.get(`/projects/${projectId}`);
       const data: TProject | undefined = res.data?.data;
 
-      console.log(data, 'single project');
+   
 
       if (data) {
         this.single.data = data;

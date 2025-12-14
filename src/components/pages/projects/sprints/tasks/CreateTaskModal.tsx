@@ -37,26 +37,26 @@ export default function CreateTaskModal({
     },
   });
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      await taskStore.createTask({
-        title: data.title,
-        description: data.description,
-        sprintId, 
-      });
+const onSubmit = async (data: FormData) => {
+  try {
+    const res = await taskStore.createTask({
+      title: data.title,
+      description: data.description,
+      sprintId,
+    });
 
-      toast.success('Task created');
-      setOpen(false);
-      form.reset();
+    const createdTask = res.data.data;
 
-      // refresh task list for this sprint
-      await taskStore.getTasks({ sprintId });
-    } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message || 'Failed to create task',
-      );
-    }
-  };
+    taskStore.addTaskToSprint(sprintId, createdTask);
+
+    toast.success('Task created');
+    setOpen(false);
+    form.reset();
+  } catch (err: any) {
+    toast.error(err?.response?.data?.message || 'Failed to create task');
+  }
+};
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

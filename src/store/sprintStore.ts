@@ -16,16 +16,24 @@ export const sprintStore = proxy({
     return $axios.post('/sprint', payload);
   },
 
-  async updateSprint(id: string, payload: any) {
-    return $axios.patch(`/sprint/${id}`, payload);
+   async updateSprint(sprintId: string, payload: any) {
+    const res = await $axios.patch(`/sprint/${sprintId}`, payload);
+
+   
+    this.list = this.list.map((s) =>
+      s._id === sprintId ? res.data.data : s,
+    );
+
+    return res;
   },
 
-  async deleteSprint(id: string) {
-    return $axios.delete(`/sprint/${id}`);
+ async deleteSprint(sprintId: string) {
+    await $axios.delete(`/sprint/${sprintId}`);
+    this.list = this.list.filter((s) => s._id !== sprintId);
   },
 
   async reorderSprints(projectId: string, items: any[]) {
-    return $axios.post('/sprint/reorder', {
+    return $axios.patch('/sprint/reorder', {
       projectId,
       items,
     });
