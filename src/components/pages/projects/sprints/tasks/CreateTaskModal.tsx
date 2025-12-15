@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+
 type FormData = {
   title: string;
   description?: string;
@@ -47,8 +49,6 @@ export default function CreateTaskModal({
   const [open, setOpen] = useState(false);
   const teamSnap = useSnapshot(teamStore);
 
-
-
   const form = useForm<FormData>({
     defaultValues: {
       title: '',
@@ -60,7 +60,6 @@ export default function CreateTaskModal({
       assignees: [],
     },
   });
-
 
   useEffect(() => {
     if (open && projectId) {
@@ -160,7 +159,9 @@ export default function CreateTaskModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="inprogress">In Progress</SelectItem>
+                <SelectItem value="inprogress">
+                  In Progress
+                </SelectItem>
                 <SelectItem value="review">Review</SelectItem>
                 <SelectItem value="done">Done</SelectItem>
               </SelectContent>
@@ -173,7 +174,7 @@ export default function CreateTaskModal({
             <Input type="date" {...form.register('dueDate')} />
           </div>
 
-
+          {/* Assign Users */}
           <div>
             <Label>Assign Users</Label>
 
@@ -191,37 +192,49 @@ export default function CreateTaskModal({
                   </p>
                 )}
 
-              {teamSnap.list.map((team) => (
-                <label
-                  key={team._id}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form
-                      .watch('assignees')
-                      .includes(team.userId._id)}
-                    onChange={(e) => {
-                      const prev = form.getValues('assignees');
-                      form.setValue(
-                        'assignees',
-                        e.target.checked
-                          ? [...prev, team.userId._id]
-                          : prev.filter(
-                              (id) =>
-                                id !== team.userId._id,
-                            ),
-                      );
-                    }}
-                  />
-                  <span>
-                    {team.userId.name}{' '}
-                    <span className="text-muted-foreground">
-                      ({team.role})
+              {teamSnap.list.map((team) => {
+                // ✅ SAFE user extraction
+                const user =
+                  typeof team.userId === 'object' &&
+                  team.userId !== null
+                    ? team.userId
+                    : null;
+
+                if (!user) return null;
+
+                return (
+                  <label
+                    key={user._id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form
+                        .watch('assignees')
+                        .includes(user._id)}
+                      onChange={(e) => {
+                        const prev =
+                          form.getValues('assignees');
+
+                        form.setValue(
+                          'assignees',
+                          e.target.checked
+                            ? [...prev, user._id]
+                            : prev.filter(
+                                (id) => id !== user._id,
+                              ),
+                        );
+                      }}
+                    />
+                    <span>
+                      {user.name ?? 'Unnamed user'}{' '}
+                      <span className="text-muted-foreground">
+                        ({team.role})
+                      </span>
                     </span>
-                  </span>
-                </label>
-              ))}
+                  </label>
+                );
+              })}
             </div>
           </div>
 

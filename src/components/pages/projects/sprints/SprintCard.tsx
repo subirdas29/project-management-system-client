@@ -16,6 +16,16 @@ import ConfirmDialog from '@/components/ui/confirmModal/ConfirmModal';
 import SprintDetailsModal from './SprintDetailsModal';
 import CreateTaskModal from './tasks/CreateTaskModal';
 
+
+type TSprintUI = {
+  _id: string;
+  projectId?: string;
+  sprintNumber?: number;
+  title: string;
+  startDate?: string;
+  endDate?: string;
+};
+
 const formatDate = (date?: string) => {
   if (!date) return '—';
   return new Date(date).toLocaleDateString(undefined, {
@@ -25,7 +35,11 @@ const formatDate = (date?: string) => {
   });
 };
 
-export default function SprintCard({ sprint }: any) {
+export default function SprintCard({
+  sprint,
+}: {
+  sprint: TSprintUI;
+}) {
   const { user } = useSnapshot(authStore);
 
   const isAdminOrManager =
@@ -39,7 +53,7 @@ export default function SprintCard({ sprint }: any) {
     transition,
   } = useSortable({
     id: sprint._id,
-    disabled: !isAdminOrManager, 
+    disabled: !isAdminOrManager,
   });
 
   const style = {
@@ -69,10 +83,10 @@ export default function SprintCard({ sprint }: any) {
       {...attributes}
       className="border rounded p-4 space-y-3 bg-background"
     >
-      {/* HEADER */}
+      
       <div className="flex justify-between items-start">
         <div className="flex items-start gap-2">
-          {/* 🔀 Drag handle (admin/manager only) */}
+       
           {isAdminOrManager && (
             <span
               {...listeners}
@@ -85,7 +99,8 @@ export default function SprintCard({ sprint }: any) {
 
           <div>
             <h2 className="font-semibold">
-              Sprint {sprint.sprintNumber}: {sprint.title}
+              Sprint {sprint.sprintNumber}:{' '}
+              {sprint.title}
             </h2>
 
             <p className="text-xs text-muted-foreground">
@@ -95,9 +110,8 @@ export default function SprintCard({ sprint }: any) {
           </div>
         </div>
 
-        {/* ACTIONS */}
         <div className="flex gap-2 items-center">
-          {/* View – everyone */}
+       
           <button
             onClick={() => setDetailsOpen(true)}
             className="cursor-pointer"
@@ -106,7 +120,7 @@ export default function SprintCard({ sprint }: any) {
             <Eye size={16} />
           </button>
 
-          {/* ✏️ Edit – admin/manager */}
+        
           {isAdminOrManager && (
             <button
               onClick={() => setEditOpen(true)}
@@ -117,7 +131,7 @@ export default function SprintCard({ sprint }: any) {
             </button>
           )}
 
-          {/* 🗑️ Delete – admin/manager */}
+         
           {isAdminOrManager && (
             <button
               onClick={() => setDeleteOpen(true)}
@@ -128,8 +142,8 @@ export default function SprintCard({ sprint }: any) {
             </button>
           )}
 
-          {/* ➕ Create Task – admin/manager */}
-          {isAdminOrManager && (
+         
+          {isAdminOrManager && sprint.projectId && (
             <CreateTaskModal
               projectId={sprint.projectId}
               sprintId={sprint._id}
@@ -138,7 +152,7 @@ export default function SprintCard({ sprint }: any) {
         </div>
       </div>
 
-      {/* TASK LIST (everyone sees tasks) */}
+      {/* TASK LIST */}
       <TaskList sprintId={sprint._id} />
 
       {/* MODALS */}

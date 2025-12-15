@@ -12,6 +12,18 @@ import {
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 
+
+type TSprintDetails = {
+  _id: string;
+  sprintNumber: number;
+  title: string;
+  startDate: string;
+  endDate: string;
+  totalTasks: number;
+  completedTasks: number;
+  progress: number;
+};
+
 export default function SprintDetailsModal({
   open,
   sprintId,
@@ -29,7 +41,9 @@ export default function SprintDetailsModal({
     }
   }, [open, sprintId]);
 
-  const sprint = snap.single.data;
+  const sprint =
+    snap.single.data as TSprintDetails | null;
+
   if (!sprint) return null;
 
   return (
@@ -48,8 +62,13 @@ export default function SprintDetailsModal({
 
           <p>
             <strong>Duration:</strong>{' '}
-            {new Date(sprint.startDate).toLocaleDateString()} –{' '}
-            {new Date(sprint.endDate).toLocaleDateString()}
+            {new Date(
+              sprint.startDate,
+            ).toLocaleDateString()}{' '}
+            –{' '}
+            {new Date(
+              sprint.endDate,
+            ).toLocaleDateString()}
           </p>
 
           <p>

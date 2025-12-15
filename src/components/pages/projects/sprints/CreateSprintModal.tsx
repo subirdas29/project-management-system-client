@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -67,7 +68,7 @@ export default function CreateSprintModal({
     }
   };
 
-  // ❌ member হলে কিছুই render করবে না
+
   if (!isAdminOrManager) return null;
 
   return (

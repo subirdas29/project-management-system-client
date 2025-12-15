@@ -189,38 +189,30 @@ const projectStore = proxy({
     }
   },
 
-  async getProjectOverview(
+   async getProjectOverview(
     projectId: string,
   ): Promise<[TProjectOverview | null, string | null]> {
     this.overview.loading = true;
     this.overview.error = null;
-
-    let resp: [TProjectOverview | null, string | null] = [
-      null,
-      null,
-    ];
 
     try {
       const res = await $axios.get<{
         data: TProjectOverview;
       }>(`/projects/${projectId}/overview`);
 
-      if (res.data?.data) {
-        this.overview.data = res.data.data;
-        resp = [res.data.data, null];
-      }
-    } catch (e: unknown) {
+      this.overview.data = res.data.data;
+      return [res.data.data, null];
+    } catch (e) {
       const err = e as AxiosError<{ message?: string }>;
       const message =
         err.response?.data?.message ||
-        'Failed to load overview';
+        'Failed to load project overview';
 
       this.overview.data = null;
       this.overview.error = message;
-      resp = [null, message];
+      return [null, message];
     } finally {
       this.overview.loading = false;
-      return resp;
     }
   },
 

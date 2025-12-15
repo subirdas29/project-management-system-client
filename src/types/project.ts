@@ -15,22 +15,18 @@ export interface TProject {
   status: TProjectStatus;
   thumbnail?: string;
   createdBy?: string;
-  taskStats: {
-    total: number;
-    completed: number;
-  };
   createdAt?: string;
   updatedAt?: string;
 }
 
-export interface TProjectOverview {
-  project: TProject;
+export interface TSprintStats {
+  totalSprints: number;
   totalTasks: number;
   completedTasks: number;
+}
+
+export interface TProjectOverview {
+  project: TProject;
+  sprintStats: TSprintStats;
   progress: number;
-  sprints: {
-    _id: string;
-    title: string;
-    sprintNumber: number;
-  }[];
 }

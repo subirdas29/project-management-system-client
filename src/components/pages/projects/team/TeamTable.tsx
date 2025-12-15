@@ -26,6 +26,32 @@ import { Input } from '@/components/ui/input';
 
 import AddTeamMemberModal from '@/components/ui/teamMemberModal/AddTeamMemberModal';
 
+
+type TTeamMember = {
+  _id: string;
+
+  projectId?: string;
+
+  role: 'admin' | 'manager' | 'member';
+
+  department?: string;
+
+  skills?: string[] | readonly string[];
+
+  userId:
+    | string
+    | {
+        _id: string;
+        name?: string;
+        email?: string;
+        role?: 'admin' | 'manager' | 'member';
+      };
+
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+
 export default function TeamTable({
   projectId,
 }: {
@@ -35,6 +61,7 @@ export default function TeamTable({
 
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
   const [editForm, setEditForm] = useState({
     department: '',
     skills: '',
@@ -44,11 +71,12 @@ export default function TeamTable({
     teamStore.getProjectTeam(projectId);
   }, [projectId]);
 
-  const startEdit = (m: any) => {
+
+  const startEdit = (m: TTeamMember) => {
     setEditId(m._id);
     setEditForm({
       department: m.department || '',
-      skills: m.skills?.join(', ') || '',
+      skills: m.skills ? m.skills.join(', ') : '',
     });
   };
 
@@ -58,7 +86,7 @@ export default function TeamTable({
       skills: editForm.skills
         ? editForm.skills
             .split(',')
-            .map((s: string) => s.trim())
+            .map((s) => s.trim())
             .filter(Boolean)
         : [],
     });
@@ -99,40 +127,44 @@ export default function TeamTable({
         </TableHeader>
 
         <TableBody>
-          {snap.list.map((m) => {
+          {snap.list.map((m: TTeamMember) => {
             const isEditing = editId === m._id;
 
             return (
               <TableRow key={m._id}>
-                <TableCell>{m.userId.name}</TableCell>
-                <TableCell>{m.userId.email}</TableCell>
+              <TableCell>
+  {typeof m.userId === 'string'
+    ? 'N/A'
+    : m.userId.name}
+</TableCell>
 
-         
+<TableCell>
+  {typeof m.userId === 'string'
+    ? 'N/A'
+    : m.userId.email}
+</TableCell>
+
+
+                {/* ROLE */}
                 <TableCell>
-                  <Select
-                    defaultValue={m.role}
-                    onValueChange={(v) =>
-                      teamStore.updateTeamMember(
-                        m._id,
-                        { role: v },
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">
-                        Admin
-                      </SelectItem>
-                      <SelectItem value="manager">
-                        Manager
-                      </SelectItem>
-                      <SelectItem value="member">
-                        Member
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                <Select
+  defaultValue={m.role}
+  onValueChange={(v) =>
+    teamStore.updateTeamMember(m._id, {
+      role: v as 'admin' | 'manager' | 'member',
+    })
+  }
+>
+  <SelectTrigger className="w-32">
+    <SelectValue />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="admin">Admin</SelectItem>
+    <SelectItem value="manager">Manager</SelectItem>
+    <SelectItem value="member">Member</SelectItem>
+  </SelectContent>
+</Select>
+
                 </TableCell>
 
                 {/* DEPARTMENT */}
@@ -144,7 +176,8 @@ export default function TeamTable({
                       onChange={(e) =>
                         setEditForm({
                           ...editForm,
-                          department: e.target.value,
+                          department:
+                            e.target.value,
                         })
                       }
                     />
@@ -179,7 +212,9 @@ export default function TeamTable({
                     <>
                       <Button
                         size="sm"
-                        onClick={() => saveEdit(m._id)}
+                        onClick={() =>
+                          saveEdit(m._id)
+                        }
                       >
                         Save
                       </Button>
@@ -196,7 +231,9 @@ export default function TeamTable({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => startEdit(m)}
+                        onClick={() =>
+                          startEdit(m)
+                        }
                       >
                         Edit
                       </Button>
@@ -204,7 +241,9 @@ export default function TeamTable({
                         size="sm"
                         variant="destructive"
                         onClick={() =>
-                          teamStore.removeTeamMember(m._id)
+                          teamStore.removeTeamMember(
+                            m._id,
+                          )
                         }
                       >
                         Remove

@@ -27,15 +27,57 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-type FormData = {
+
+
+type TPriority = 'low' | 'medium' | 'high';
+type TStatus = 'todo' | 'inprogress' | 'review' | 'done';
+
+type TFormData = {
   title: string;
   description?: string;
   estimateHours?: number;
-  priority: 'low' | 'medium' | 'high';
-  status: 'todo' | 'inprogress' | 'review' | 'done';
+  priority: TPriority;
+  status: TStatus;
   dueDate?: string;
   assignees: string[];
 };
+
+type TTaskUI = {
+  _id: string;
+  title?: string;
+  description?: string;
+  estimateHours?: number;
+  priority?: TPriority;
+  status?: TStatus;
+  dueDate?: string;
+  assignees?: Array<
+    | string
+    | {
+        _id: string;
+        name?: string;
+      }
+  >;
+  projectId?: {
+    _id: string;
+  };
+};
+
+type TTeamMemberUI = {
+  _id: string;
+  role: 'admin' | 'manager' | 'member';
+  userId:
+    | string
+    | {
+        _id: string;
+        name?: string;
+      };
+};
+
+type TUpdateTaskPayload =
+  | Partial<TFormData>
+  | { status: TStatus };
+
+
 
 export default function EditTaskModal({
   open,
@@ -43,7 +85,7 @@ export default function EditTaskModal({
   onClose,
 }: {
   open: boolean;
-  task: any;
+  task: TTaskUI | null;
   onClose: () => void;
 }) {
   const teamSnap = useSnapshot(teamStore);
@@ -53,7 +95,7 @@ export default function EditTaskModal({
     user?.role === 'admin' || user?.role === 'manager';
   const isMember = user?.role === 'member';
 
-  const form = useForm<FormData>({
+  const form = useForm<TFormData>({
     defaultValues: {
       title: '',
       description: '',
@@ -65,64 +107,65 @@ export default function EditTaskModal({
     },
   });
 
-  /* 🔄 modal open হলে task data reset */
+
   useEffect(() => {
     if (open && task) {
       form.reset({
         title: task.title ?? '',
         description: task.description ?? '',
-        estimateHours: task.estimateHours ?? undefined,
+        estimateHours: task.estimateHours,
         priority: task.priority ?? 'medium',
         status: task.status ?? 'todo',
         dueDate: task.dueDate
           ? task.dueDate.split('T')[0]
           : '',
         assignees: (task.assignees || [])
-          .map((u: any) => u?._id)
+          .map((u) =>
+            typeof u === 'string' ? u : u._id,
+          )
           .filter(Boolean),
       });
     }
   }, [open, task, form]);
 
-  /* 👥 team load only for admin/manager */
+
   useEffect(() => {
-    if (open && isAdminOrManager && task?.projectId?._id) {
+    if (
+      open &&
+      isAdminOrManager &&
+      task?.projectId?._id
+    ) {
       teamStore.getProjectTeam(task.projectId._id);
     }
   }, [open, isAdminOrManager, task?.projectId?._id]);
 
- 
-  const onSubmit = async (data: FormData) => {
-  try {
-    if (isMember && task?.status === 'done') {
-      toast.error('Completed task cannot be updated');
-      return;
+  const onSubmit = async (data: TFormData) => {
+    try {
+      if (isMember && task?.status === 'done') {
+        toast.error(
+          'Completed task cannot be updated',
+        );
+        return;
+      }
+
+      let payload: TUpdateTaskPayload;
+
+      if (isAdminOrManager) {
+        payload = {
+          ...data,
+          assignees: data.assignees.filter(Boolean),
+        };
+      } else {
+        payload = { status: data.status };
+      }
+
+      await taskStore.updateTask(task!._id, payload);
+      toast.success('Task updated successfully');
+      onClose();
+    } catch {
+      toast.error('Failed to update task');
     }
-
-    let payload: any = {};
-
-    if (isAdminOrManager) {
-      payload = {
-        ...data,
-        assignees: (data.assignees || []).filter(Boolean),
-      };
-    }
-
-    if (isMember) {
-      payload = {
-        status: data.status,
-      };
-    }
-
-    await taskStore.updateTask(task._id, payload);
-    toast.success('Task updated successfully');
-    onClose();
-  } catch (err: any) {
-    toast.error(
-      err?.response?.data?.message || 'Failed to update task',
-    );
-  }
-};
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -139,7 +182,11 @@ export default function EditTaskModal({
           {isAdminOrManager && (
             <div className="space-y-1">
               <Label>Title</Label>
-              <Input {...form.register('title', { required: true })} />
+              <Input
+                {...form.register('title', {
+                  required: true,
+                })}
+              />
             </div>
           )}
 
@@ -147,7 +194,9 @@ export default function EditTaskModal({
           {isAdminOrManager && (
             <div className="space-y-1">
               <Label>Description</Label>
-              <Textarea {...form.register('description')} />
+              <Textarea
+                {...form.register('description')}
+              />
             </div>
           )}
 
@@ -171,49 +220,67 @@ export default function EditTaskModal({
               <Select
                 value={form.watch('priority')}
                 onValueChange={(v) =>
-                  form.setValue('priority', v as any)
+                  form.setValue(
+                    'priority',
+                    v as TPriority,
+                  )
                 }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="low">
+                    Low
+                  </SelectItem>
+                  <SelectItem value="medium">
+                    Medium
+                  </SelectItem>
+                  <SelectItem value="high">
+                    High
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           )}
 
-          {/* STATUS (everyone, but member no done) */}
+          {/* STATUS */}
           <div className="space-y-1">
             <Label>Status</Label>
             <Select
               value={form.watch('status')}
               onValueChange={(v) =>
-                form.setValue('status', v as any)
+                form.setValue(
+                  'status',
+                  v as TStatus,
+                )
               }
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todo">To Do</SelectItem>
+                <SelectItem value="todo">
+                  To Do
+                </SelectItem>
                 <SelectItem value="inprogress">
                   In Progress
                 </SelectItem>
-                <SelectItem value="review">Review</SelectItem>
-
+                <SelectItem value="review">
+                  Review
+                </SelectItem>
                 {isAdminOrManager && (
-                  <SelectItem value="done">Done</SelectItem>
+                  <SelectItem value="done">
+                    Done
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
 
             {isMember && (
               <p className="text-xs text-muted-foreground">
-                Only manager or admin can mark task as done
+                Only admin or manager can mark
+                task as done
               </p>
             )}
           </div>
@@ -222,7 +289,10 @@ export default function EditTaskModal({
           {isAdminOrManager && (
             <div className="space-y-1">
               <Label>Due Date</Label>
-              <Input type="date" {...form.register('dueDate')} />
+              <Input
+                type="date"
+                {...form.register('dueDate')}
+              />
             </div>
           )}
 
@@ -232,50 +302,55 @@ export default function EditTaskModal({
               <Label>Assignees</Label>
 
               <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
-                {teamSnap.loading && (
-                  <p className="text-xs text-muted-foreground">
-                    Loading team members...
-                  </p>
+                {teamSnap.list.map(
+                  (team: TTeamMemberUI) => {
+                    const userId =
+                      typeof team.userId ===
+                      'string'
+                        ? team.userId
+                        : team.userId._id;
+
+                    return (
+                      <label
+                        key={team._id}
+                        className="flex items-center gap-2 text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form
+                            .watch('assignees')
+                            .includes(userId)}
+                          onChange={(e) => {
+                            const prev =
+                              form.getValues(
+                                'assignees',
+                              ) || [];
+
+                            form.setValue(
+                              'assignees',
+                              e.target.checked
+                                ? [...prev, userId]
+                                : prev.filter(
+                                    (id) =>
+                                      id !== userId,
+                                  ),
+                            );
+                          }}
+                        />
+
+                        <span>
+                          {typeof team.userId ===
+                          'string'
+                            ? 'Unknown User'
+                            : team.userId.name}{' '}
+                          <span className="text-muted-foreground">
+                            ({team.role})
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  },
                 )}
-
-                {!teamSnap.loading &&
-                  teamSnap.list.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      No team members found
-                    </p>
-                  )}
-
-                {teamSnap.list.map((team) => (
-                  <label
-                    key={team._id}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form
-                        .watch('assignees')
-                        .includes(team.userId._id)}
-                      onChange={(e) => {
-                        const prev =
-                          form.getValues('assignees') || [];
-                        form.setValue(
-                          'assignees',
-                          e.target.checked
-                            ? [...prev, team.userId._id]
-                            : prev.filter(
-                                (id) => id !== team.userId._id,
-                              ),
-                        );
-                      }}
-                    />
-                    <span>
-                      {team.userId.name}{' '}
-                      <span className="text-muted-foreground">
-                        ({team.role})
-                      </span>
-                    </span>
-                  </label>
-                ))}
               </div>
             </div>
           )}

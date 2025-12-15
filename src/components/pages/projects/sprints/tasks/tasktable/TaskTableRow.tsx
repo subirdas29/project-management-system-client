@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { Eye, Pencil, Trash2 } from 'lucide-react';
@@ -28,7 +29,7 @@ export default function TaskTableRow({ task }: { task: any }) {
 
         <td>
           {task.assignees?.length
-            ? task.assignees.map((u) => u.name).join(', ')
+            ? task.assignees.map((u:any) => u.name).join(', ')
             : '—'}
         </td>
 

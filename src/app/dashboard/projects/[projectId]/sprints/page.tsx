@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect } from 'react';
@@ -57,14 +58,14 @@ export default function SprintPage() {
       newIndex,
     );
 
-    // ⚠️ valtio snapshot readonly — update store directly
     sprintStore.list = newList;
 
-    // ✅ backend payload
-    const items = newList.map((sprint: any, index: number) => ({
-      sprintId: sprint._id,
-      order: index + 1,
-    }));
+    // ✅ TYPE FIX HERE (_id instead of sprintId)
+    const items: { _id: string; order: number }[] =
+      newList.map((sprint: any, index: number) => ({
+        _id: sprint._id,
+        order: index + 1,
+      }));
 
     try {
       await sprintStore.reorderSprints(projectId, items);
@@ -83,36 +84,35 @@ export default function SprintPage() {
         </h1>
 
         <div className="flex gap-2">
-        
           <Button
             variant="outline"
             onClick={() =>
               router.push(
                 `/dashboard/projects/${projectId}/tasks`,
               )
-            } className='cursor-pointer'
+            }
+            className="cursor-pointer"
           >
             All Tasks
           </Button>
 
-         
           <Button
             variant="outline"
             onClick={() =>
               router.push(
                 `/dashboard/projects/${projectId}/kanban`,
               )
-            } className='cursor-pointer'
+            }
+            className="cursor-pointer"
           >
             Kanban Board
           </Button>
 
-         
           <CreateSprintModal projectId={projectId} />
         </div>
       </div>
 
-   
+      {/* SPRINT LIST */}
       <DndContext
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
@@ -123,7 +123,10 @@ export default function SprintPage() {
         >
           <div className="space-y-4">
             {sprintSnap.list.map((sprint) => (
-              <SprintCard key={sprint._id} sprint={sprint} />
+              <SprintCard
+                key={sprint._id}
+                sprint={sprint}
+              />
             ))}
           </div>
         </SortableContext>

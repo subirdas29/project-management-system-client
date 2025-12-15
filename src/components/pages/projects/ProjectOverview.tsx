@@ -225,11 +225,11 @@ export default function ProjectOverview({
                 className="border rounded-lg p-3 space-y-1"
               >
                 <p className="font-medium">
-                  {member.userId?.name}
+                  {typeof member.userId === 'object' ? member.userId?.name : member.userId}
                 </p>
 
                 <p className="text-xs text-muted-foreground">
-                  {member.userId?.email}
+                  {typeof member.userId === 'object' ? member.userId?.email : 'N/A'}
                 </p>
 
                 <Badge
