@@ -41,7 +41,7 @@ export default function Sidebar() {
       
           <NavItem href="/dashboard" label="Dashboard" />
 
-          {/* ADMIN / MANAGER */}
+        
           {(user?.role === 'admin' ||
             user?.role === 'manager') && (
             <>
@@ -75,7 +75,7 @@ export default function Sidebar() {
           {user?.role === 'member' && (
             <>
               <NavItem
-                href="/dashboard?view=my-tasks"
+                href="/dashboard/projects"
                 label="My Tasks"
               />
 

@@ -1,8 +1,8 @@
-
 'use client';
 
 import { useSnapshot } from 'valtio';
 import { useRouter } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 
 import authStore from '@/store/authStore';
 import MobileSidebar from '@/components/layout/MobileSidebar';
@@ -12,6 +12,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -32,12 +34,35 @@ export default function Topbar() {
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost">
-                {user.name}
-              </Button>
+          <Button
+  variant="ghost"
+  className="
+    flex items-center gap-1 px-3
+   border-2
+    rounded-md
+    hover:bg-accent
+  "
+>
+    
+  <span className="font-medium">{user.name}</span>
+  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+</Button>
+
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="space-y-1 ">
+                <p className="text-sm font-medium ">{user.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {user.email}
+                </p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  Role: {user.role}
+                </p>
+              </DropdownMenuLabel>
+
+              <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 onClick={() => {
                   authStore.logout();

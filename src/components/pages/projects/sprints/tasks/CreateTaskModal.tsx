@@ -193,7 +193,7 @@ export default function CreateTaskModal({
                 )}
 
               {teamSnap.list.map((team) => {
-                // ✅ SAFE user extraction
+          
                 const user =
                   typeof team.userId === 'object' &&
                   team.userId !== null
@@ -228,8 +228,11 @@ export default function CreateTaskModal({
                     />
                     <span>
                       {user.name ?? 'Unnamed user'}{' '}
+                         <span className="text-muted-foreground">
+                        ({user.email})
+                      </span>
                       <span className="text-muted-foreground">
-                        ({team.role})
+                        -{team.role}
                       </span>
                     </span>
                   </label>

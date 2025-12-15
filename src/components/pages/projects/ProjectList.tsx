@@ -66,10 +66,6 @@ export default function ProjectList() {
   }, [status]);
 
 
-  if (user?.role !== 'admin' && user?.role !== 'manager') {
-    return <p>You do not have permission.</p>;
-  }
-
  
   const handleDelete = async (id: string) => {
     try {

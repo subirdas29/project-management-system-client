@@ -70,6 +70,7 @@ type TTeamMemberUI = {
     | {
         _id: string;
         name?: string;
+        email?: string; 
       };
 };
 
@@ -343,8 +344,14 @@ export default function EditTaskModal({
                           'string'
                             ? 'Unknown User'
                             : team.userId.name}{' '}
+                              <span className="text-muted-foreground">
+                           {typeof team.userId ===
+                          'string'
+                            ? 'No Email'
+                            : (team.userId.email)}{' '}
+                      </span>
                           <span className="text-muted-foreground">
-                            ({team.role})
+                            -{team.role}
                           </span>
                         </span>
                       </label>
