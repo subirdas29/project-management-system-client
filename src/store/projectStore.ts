@@ -1,13 +1,14 @@
 import { proxy } from 'valtio';
+import $axios from '@/_api/axios';
+import type { AxiosError } from 'axios';
 
 import type { TProject, TProjectOverview } from '@/types/project';
-import $axios from '@/_api/axios';
+import type { TMeta } from '@/types/meta';
 
 const projectStore = proxy({
-
   list: {
     data: [] as TProject[],
-    meta: null as any,
+    meta: null as TMeta | null,
     loading: false,
     error: null as string | null,
     requestsMade: 0,
@@ -35,45 +36,44 @@ const projectStore = proxy({
     error: null as string | null,
   },
 
-
-async getAllProjects(
-  query?: Record<string, unknown>,
-): Promise<[TProject[] | null, string | null]> {
-
-
-  if (this.list.loading) {
-    return [this.list.data, null];
-  }
-
-  this.list.loading = true;
-  this.list.error = null;
-
-  let resp: [TProject[] | null, string | null] = [null, null];
-
-  try {
-    const res = await $axios.get('/projects', { params: query });
-    const payload = res.data;
-
-    if (payload?.data) {
-      this.list.data = payload.data;  
-      this.list.meta = payload.meta;
-      resp = [payload.data, null];
+  async getAllProjects(
+    query?: Record<string, unknown>,
+  ): Promise<[TProject[] | null, string | null]> {
+    if (this.list.loading) {
+      return [this.list.data, null];
     }
-  } catch (err: any) {
-    const message =
-      err.response?.data?.message || 'Failed to fetch projects';
 
-    this.list.error = message;
-    resp = [null, message];
-  } finally {
-    this.list.loading = false;
-    this.list.requestsMade += 1;
-    return resp;
-  }
-},
+    this.list.loading = true;
+    this.list.error = null;
 
+    let resp: [TProject[] | null, string | null] = [null, null];
 
- 
+    try {
+      const res = await $axios.get<{
+        data: TProject[];
+        meta: TMeta;
+      }>('/projects', { params: query });
+
+      if (res.data?.data) {
+        this.list.data = res.data.data;
+        this.list.meta = res.data.meta;
+        resp = [res.data.data, null];
+      }
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
+      const message =
+        err.response?.data?.message ||
+        'Failed to fetch projects';
+
+      this.list.error = message;
+      resp = [null, message];
+    } finally {
+      this.list.loading = false;
+      this.list.requestsMade += 1;
+      return resp;
+    }
+  },
+
   async getSingleProject(
     projectId: string,
   ): Promise<[TProject | null, string | null]> {
@@ -83,16 +83,16 @@ async getAllProjects(
     let resp: [TProject | null, string | null] = [null, null];
 
     try {
-      const res = await $axios.get(`/projects/${projectId}`);
-      const data: TProject | undefined = res.data?.data;
+      const res = await $axios.get<{ data: TProject }>(
+        `/projects/${projectId}`,
+      );
 
-   
-
-      if (data) {
-        this.single.data = data;
-        resp = [data, null];
+      if (res.data?.data) {
+        this.single.data = res.data.data;
+        resp = [res.data.data, null];
       }
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
       const message =
         err.response?.data?.message || 'Project not found';
 
@@ -105,7 +105,6 @@ async getAllProjects(
     }
   },
 
-
   async createProject(
     payload: Partial<TProject>,
   ): Promise<[TProject | null, string | null]> {
@@ -114,24 +113,30 @@ async getAllProjects(
     let resp: [TProject | null, string | null] = [null, null];
 
     try {
-      const res = await $axios.post('/projects', payload);
-      const data: TProject | undefined = res.data?.data;
+      const res = await $axios.post<{ data: TProject }>(
+        '/projects',
+        payload,
+      );
 
-      if (data) {
+      if (res.data?.data) {
         this.createStatus.success = true;
-        resp = [data, null];
+        resp = [res.data.data, null];
       }
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
       const message =
-        err.response?.data?.message || 'Failed to create project';
+        err.response?.data?.message ||
+        'Failed to create project';
 
-      this.createStatus = { success: false, error: message };
+      this.createStatus = {
+        success: false,
+        error: message,
+      };
       resp = [null, message];
     } finally {
       return resp;
     }
   },
-
 
   async updateProject(
     projectId: string,
@@ -142,25 +147,31 @@ async getAllProjects(
     let resp: [TProject | null, string | null] = [null, null];
 
     try {
-      const res = await $axios.patch(`/projects/${projectId}`, payload);
-      const data: TProject | undefined = res.data?.data;
+      const res = await $axios.patch<{ data: TProject }>(
+        `/projects/${projectId}`,
+        payload,
+      );
 
-      if (data) {
-        this.single.data = data;
+      if (res.data?.data) {
+        this.single.data = res.data.data;
         this.updateStatus.success = true;
-        resp = [data, null];
+        resp = [res.data.data, null];
       }
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
       const message =
-        err.response?.data?.message || 'Failed to update project';
+        err.response?.data?.message ||
+        'Failed to update project';
 
-      this.updateStatus = { success: false, error: message };
+      this.updateStatus = {
+        success: false,
+        error: message,
+      };
       resp = [null, message];
     } finally {
       return resp;
     }
   },
-
 
   async deleteProject(
     projectId: string,
@@ -168,14 +179,15 @@ async getAllProjects(
     try {
       await $axios.delete(`/projects/${projectId}`);
       return [true, null];
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
       return [
         false,
-        err.response?.data?.message || 'Failed to delete project',
+        err.response?.data?.message ||
+          'Failed to delete project',
       ];
     }
   },
-
 
   async getProjectOverview(
     projectId: string,
@@ -183,19 +195,25 @@ async getAllProjects(
     this.overview.loading = true;
     this.overview.error = null;
 
-    let resp: [TProjectOverview | null, string | null] = [null, null];
+    let resp: [TProjectOverview | null, string | null] = [
+      null,
+      null,
+    ];
 
     try {
-      const res = await $axios.get(`/projects/${projectId}/overview`);
-      const data: TProjectOverview | undefined = res.data?.data;
+      const res = await $axios.get<{
+        data: TProjectOverview;
+      }>(`/projects/${projectId}/overview`);
 
-      if (data) {
-        this.overview.data = data;
-        resp = [data, null];
+      if (res.data?.data) {
+        this.overview.data = res.data.data;
+        resp = [res.data.data, null];
       }
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
       const message =
-        err.response?.data?.message || 'Failed to load overview';
+        err.response?.data?.message ||
+        'Failed to load overview';
 
       this.overview.data = null;
       this.overview.error = message;
@@ -206,17 +224,14 @@ async getAllProjects(
     }
   },
 
+  getStats() {
+    const total = this.list.data.length;
+    const active = this.list.data.filter(
+      (p) => p.status === 'active',
+    ).length;
 
-
-getStats() {
-  const total = this.list.data.length;
-  const active = this.list.data.filter(
-    (p) => p.status === 'active',
-  ).length;
-
-  return { total, active };
-},
-
+    return { total, active };
+  },
 
   reset() {
     this.list = {
@@ -226,8 +241,16 @@ getStats() {
       error: null,
       requestsMade: 0,
     };
-    this.single = { data: null, loading: false, error: null };
-    this.overview = { data: null, loading: false, error: null };
+    this.single = {
+      data: null,
+      loading: false,
+      error: null,
+    };
+    this.overview = {
+      data: null,
+      loading: false,
+      error: null,
+    };
   },
 });
 

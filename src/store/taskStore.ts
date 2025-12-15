@@ -1,15 +1,18 @@
 import { proxy } from 'valtio';
 import $axios from '@/_api/axios';
+import type { TTask } from '@/types/task';
+import type { TMeta } from '@/types/meta';
+import type { AxiosError } from 'axios';
 
 export const taskStore = proxy({
-  listBySprint: {} as Record<string, any[]>,
-  single: null as any,
+  listBySprint: {} as Record<string, TTask[]>,
+  single: null as TTask | null,
 
   table: {
-    data: [] as any[],
+    data: [] as TTask[],
     loading: false,
     error: null as string | null,
-    meta: null as any,
+    meta: null as TMeta | null,
     filters: {
       projectId: '',
       sprintId: 'all',
@@ -21,23 +24,38 @@ export const taskStore = proxy({
   },
 
   async getTasks(filters: { sprintId: string }) {
-    const res = await $axios.get('/tasks', { params: filters });
-    this.listBySprint = { ...this.listBySprint, [filters.sprintId]: res.data.data };
+    const res = await $axios.get<{ data: TTask[] }>(
+      '/tasks',
+      { params: filters },
+    );
+
+    this.listBySprint = {
+      ...this.listBySprint,
+      [filters.sprintId]: res.data.data,
+    };
   },
 
   async getSingleTask(taskId: string) {
-    const res = await $axios.get(`/tasks/${taskId}`);
+    const res = await $axios.get<{ data: TTask }>(
+      `/tasks/${taskId}`,
+    );
     this.single = res.data.data;
   },
 
-  async createTask(payload: any) {
+  async createTask(payload: Partial<TTask>) {
     const res = await $axios.post('/tasks', payload);
-    await this.getTasks({ sprintId: payload.sprintId });
+    await this.getTasks({
+      sprintId: payload.sprintId as string,
+    });
     return res;
   },
 
-  async updateTask(taskId: string, payload: any) {
-    const res = await $axios.patch(`/tasks/${taskId}`, payload);
+  async updateTask(taskId: string, payload: Partial<TTask>) {
+    const res = await $axios.patch<{ data: TTask }>(
+      `/tasks/${taskId}`,
+      payload,
+    );
+
     const updatedTask = res.data.data;
 
     const sprintId =
@@ -46,7 +64,9 @@ export const taskStore = proxy({
         : updatedTask.sprintId;
 
     const prev = this.listBySprint[sprintId] || [];
-    this.listBySprint[sprintId] = prev.map((t) => (t._id === taskId ? updatedTask : t));
+    this.listBySprint[sprintId] = prev.map((t) =>
+      t._id === taskId ? updatedTask : t,
+    );
 
     return res;
   },
@@ -67,7 +87,7 @@ export const taskStore = proxy({
     try {
       const { filters } = this.table;
 
-      const params: any = {
+      const params: Record<string, string> = {
         projectId: filters.projectId,
       };
 
@@ -77,46 +97,53 @@ export const taskStore = proxy({
       if (filters.priority !== 'all') params.priority = filters.priority;
       if (filters.search) params.searchTerm = filters.search;
 
-      const res = await $axios.get('/tasks', { params });
+      const res = await $axios.get<{
+        data: TTask[];
+        meta: TMeta;
+      }>('/tasks', { params });
 
       this.table.data = res.data.data;
-      this.table.meta = res.data.meta ?? null;
-    } catch (e: any) {
-      this.table.error = e?.response?.data?.message || 'Failed to load tasks';
+      this.table.meta = res.data.meta;
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
+      this.table.error =
+        err.response?.data?.message ||
+        'Failed to load tasks';
       this.table.data = [];
     } finally {
       this.table.loading = false;
     }
   },
+
   async logTaskTime(taskId: string, hours: number) {
-  const res = await $axios.patch(
-    `/tasks/${taskId}/log-time`,
-    { hours },
-  );
+    const res = await $axios.patch<{ data: TTask }>(
+      `/tasks/${taskId}/log-time`,
+      { hours },
+    );
 
-  const updatedTask = res.data.data;
+    const updatedTask = res.data.data;
 
-  console.log('Updated Task after logging time:', updatedTask);
+    this.single = updatedTask;
 
+    const sprintId =
+      typeof updatedTask.sprintId === 'object'
+        ? updatedTask.sprintId._id
+        : updatedTask.sprintId;
 
-  this.single = updatedTask;
+    const prev = this.listBySprint[sprintId] || [];
+    this.listBySprint[sprintId] = prev.map((t) =>
+      t._id === taskId ? updatedTask : t,
+    );
 
+    return res;
+  },
 
-  const sprintId =
-    typeof updatedTask.sprintId === 'object'
-      ? updatedTask.sprintId._id
-      : updatedTask.sprintId;
-
-  const prev = this.listBySprint[sprintId] || [];
-  this.listBySprint[sprintId] = prev.map((t) =>
-    t._id === taskId ? updatedTask : t,
-  );
-
-  return res;
-},
-
-
-  setTableFilters(patch: Partial<typeof taskStore.table.filters>) {
-    this.table.filters = { ...this.table.filters, ...patch };
+  setTableFilters(
+    patch: Partial<typeof taskStore.table.filters>,
+  ) {
+    this.table.filters = {
+      ...this.table.filters,
+      ...patch,
+    };
   },
 });

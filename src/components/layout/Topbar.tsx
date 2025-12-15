@@ -25,7 +25,7 @@ export default function Topbar() {
         {/* Left */}
         <div className="flex items-center gap-2">
           <MobileSidebar />
-          <span className="font-semibold">MPMS</span>
+          <span className="font-semibold">Product Management</span>
         </div>
 
         {/* Right */}

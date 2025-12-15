@@ -1,6 +1,7 @@
 import { proxy } from 'valtio';
 import { cookieUtils } from '@/utils/cookie';
 import $axios from '@/_api/axios';
+import type { AxiosError } from 'axios';
 
 export type TUserRole = 'admin' | 'manager' | 'member';
 
@@ -36,7 +37,6 @@ const authStore = proxy({
   loginError: null as string | null,
   signupError: null as string | null,
 
-
   async login(
     payload: LoginPayload,
   ): Promise<[TAuthUser | null, string | null]> {
@@ -45,11 +45,13 @@ const authStore = proxy({
     this.authenticationLoading = true;
 
     try {
-      const res = await $axios.post('/auth/login', payload);
+      const res = await $axios.post<{
+        data?: { accessToken?: string };
+        accessToken?: string;
+      }>('/auth/login', payload);
 
       const responseData = res.data?.data || res.data;
-      const accessToken: string | undefined =
-        responseData?.accessToken;
+      const accessToken = responseData?.accessToken;
 
       if (!accessToken) {
         throw new Error('Token not found');
@@ -61,7 +63,9 @@ const authStore = proxy({
       if (err) throw new Error(err);
 
       return [me, null];
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
+
       this.user = null;
       this.isAuthenticated = false;
 
@@ -78,34 +82,17 @@ const authStore = proxy({
     }
   },
 
-
   async signup(
     payload: SignupPayload,
-  ): Promise<[TAuthUser | null, string | null]> {
+  ): Promise<[boolean, string | null]> {
     this.signupError = null;
-    this.authenticationError = null;
     this.authenticationLoading = true;
 
     try {
-      const res = await $axios.post('/auth/register', payload);
-
-      const responseData = res.data?.data || res.data;
-      const accessToken: string | undefined =
-        responseData?.accessToken;
-
-      if (!accessToken) {
-        throw new Error('Token not found');
-      }
-
-      cookieUtils.setToken(accessToken);
-
-      const [me, err] = await this.reAuthorizeWithToken();
-      if (err) throw new Error(err);
-
-      return [me, null];
-    } catch (err: any) {
-      this.user = null;
-      this.isAuthenticated = false;
+      await $axios.post('/users/register', payload);
+      return [true, null];
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
 
       const message =
         err.response?.data?.message ||
@@ -113,13 +100,12 @@ const authStore = proxy({
         'Signup failed';
 
       this.signupError = message;
-      return [null, message];
+      return [false, message];
     } finally {
       this.signupRequest += 1;
       this.authenticationLoading = false;
     }
   },
-
 
   async reAuthorizeWithToken(): Promise<
     [TAuthUser | null, string | null]
@@ -131,10 +117,11 @@ const authStore = proxy({
     this.authenticationError = null;
 
     try {
-      const res = await $axios.get('/users/me');
+      const res = await $axios.get<{
+        data?: TAuthUser;
+      }>('/users/me');
 
-      const data: TAuthUser | undefined =
-        res.data?.data || res.data;
+      const data = res.data?.data;
 
       if (!data) {
         throw new Error('Unauthorized');
@@ -143,7 +130,9 @@ const authStore = proxy({
       this.user = data;
       this.isAuthenticated = true;
       resp = [data, null];
-    } catch (err: any) {
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ message?: string }>;
+
       this.user = null;
       this.isAuthenticated = false;
 
@@ -160,7 +149,6 @@ const authStore = proxy({
     }
   },
 
-
   logout(): void {
     this.user = null;
     this.isAuthenticated = false;
@@ -170,7 +158,6 @@ const authStore = proxy({
 
     cookieUtils.removeToken();
   },
-
 
   isAdmin(): boolean {
     return this.user?.role === 'admin';

@@ -41,18 +41,18 @@ export default function SignupPageClient() {
     },
   });
 
-  const onSubmit = async (values: FormType) => {
-    try {
-      await authStore.signup(values);
+const onSubmit = async (values: FormType) => {
+  const [user, err] = await authStore.signup(values);
 
-      toast.success('Account created successfully');
-      router.replace('/login');
-    } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message || 'Signup failed',
-      );
-    }
-  };
+  if (err || !user) {
+    toast.error(err || 'Signup failed');
+    return;
+  }
+
+  toast.success('Account created successfully');
+  router.replace('/login');
+};
+
 
   return (
     <div className="min-h-screen grid place-items-center bg-muted/30 p-4">

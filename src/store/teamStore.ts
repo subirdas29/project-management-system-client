@@ -1,7 +1,8 @@
 import { proxy } from 'valtio';
 import $axios from '@/_api/axios';
+import type { TTeamMember, TTeamRole } from '@/types/team';
 
-type Role = 'admin' | 'manager' | 'member';
+type Role = TTeamRole;
 
 type AddTeamPayload =
   | {
@@ -22,22 +23,24 @@ type AddTeamPayload =
     };
 
 export const teamStore = proxy({
-  list: [] as any[],
+  list: [] as TTeamMember[],
   loading: false,
   page: 1,
   limit: 10,
   total: 0,
-    taskMembers: [] as any[],  
+
+  taskMembers: [] as TTeamMember[],
   taskLoading: false,
 
   async getProjectTeam(projectId: string, page = 1) {
     this.loading = true;
 
-    const res = await $axios.get(
+    const res = await $axios.get<{
+      data: TTeamMember[];
+      meta: { total: number };
+    }>(
       `/team/project/${projectId}?page=${page}&limit=${this.limit}`,
     );
-
-    
 
     this.list = res.data.data;
     this.total = res.data.meta.total;
@@ -49,8 +52,14 @@ export const teamStore = proxy({
     return $axios.post('/team', payload);
   },
 
-  async updateTeamMember(teamId: string, payload: any) {
-    const res = await $axios.patch(`/team/${teamId}`, payload);
+  async updateTeamMember(
+    teamId: string,
+    payload: Partial<TTeamMember>,
+  ) {
+    const res = await $axios.patch<{ data: TTeamMember }>(
+      `/team/${teamId}`,
+      payload,
+    );
 
     this.list = this.list.map((m) =>
       m._id === teamId ? res.data.data : m,
@@ -61,8 +70,9 @@ export const teamStore = proxy({
 
   async removeTeamMember(teamId: string) {
     await $axios.delete(`/team/${teamId}`);
-    this.list = this.list.filter((m) => m._id !== teamId);
-  },
 
- 
+    this.list = this.list.filter(
+      (m) => m._id !== teamId,
+    );
+  },
 });
