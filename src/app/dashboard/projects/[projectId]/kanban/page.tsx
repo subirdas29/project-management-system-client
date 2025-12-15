@@ -29,9 +29,7 @@ export default function KanbanPage() {
   const projectSnap = useSnapshot(projectStore);
   const { user } = useSnapshot(authStore);
 
-  /* ===============================
-     INITIAL DATA LOAD
-  =============================== */
+
   useEffect(() => {
     projectStore.getSingleProject(projectId);
 
@@ -39,9 +37,7 @@ export default function KanbanPage() {
     taskStore.getTasksTable();
   }, [projectId]);
 
-  /* ===============================
-     ROLE-WISE DRAG CONTROL
-  =============================== */
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -52,7 +48,7 @@ export default function KanbanPage() {
 
     if (fromStatus === toStatus) return;
 
-    // 🔒 MEMBER RULES
+  
     if (user?.role === 'member') {
       if (fromStatus === 'review' && toStatus === 'done') {
         toast.error(
@@ -77,9 +73,7 @@ export default function KanbanPage() {
     }
   };
 
-  /* ===============================
-     ROLE-WISE TASK VISIBILITY
-  =============================== */
+
   const allTasks = taskSnap.table.data || [];
   const loggedInUserId = user?._id;
 
@@ -105,9 +99,7 @@ export default function KanbanPage() {
     done: visibleTasks.filter((t) => t.status === 'done'),
   };
 
-  /* ===============================
-     UI
-  =============================== */
+
   return (
     <div className="space-y-4">
       {/* HEADER */}
@@ -142,7 +134,7 @@ export default function KanbanPage() {
         </div>
       </DndContext>
 
-      {/* EMPTY STATE FOR MEMBER */}
+   
       {user?.role === 'member' &&
         visibleTasks.length === 0 && (
           <p className="text-sm text-muted-foreground text-center pt-4">

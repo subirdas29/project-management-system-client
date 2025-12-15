@@ -33,12 +33,12 @@ export default function ProjectOverview({
 
   const { project, sprintStats, progress } = data;
 
-  // 🔐 ONLY ADMIN CAN MANAGE TEAM
-  const canManageTeam = user?.role === 'admin';
+
+  const canManageTeam = user?.role === 'admin' || user?.role === 'manager';
 
   return (
     <div className="space-y-6">
-      {/* ================= HEADER ================= */}
+ 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">
@@ -75,7 +75,7 @@ export default function ProjectOverview({
         </div>
       </div>
 
-      {/* ================= PROJECT META ================= */}
+  
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* STATUS */}
         <Card>
@@ -125,7 +125,6 @@ export default function ProjectOverview({
         </Card>
       </div>
 
-      {/* ================= DESCRIPTION ================= */}
       <Card>
         <CardContent className="p-4 space-y-2">
           <p className="font-medium">Description</p>
@@ -135,7 +134,7 @@ export default function ProjectOverview({
         </CardContent>
       </Card>
 
-      {/* ================= STATS ================= */}
+   
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -182,7 +181,7 @@ export default function ProjectOverview({
         </Card>
       </div>
 
-      {/* ================= PROGRESS BAR ================= */}
+
       <Card>
         <CardContent className="p-4 space-y-2">
           <p className="font-medium">
@@ -195,7 +194,7 @@ export default function ProjectOverview({
         </CardContent>
       </Card>
 
-      {/* ================= PROJECT TEAM ================= */}
+ 
       <Card>
         <CardContent className="p-4 space-y-4">
           <div className="flex items-center justify-between">

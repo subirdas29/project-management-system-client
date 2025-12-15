@@ -3,8 +3,10 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
+import { useSnapshot } from 'valtio';
 
 import { sprintStore } from '@/store/sprintStore';
+import authStore from '@/store/authStore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,6 +30,11 @@ export default function CreateSprintModal({
 }: {
   projectId: string;
 }) {
+  const { user } = useSnapshot(authStore);
+
+  const isAdminOrManager =
+    user?.role === 'admin' || user?.role === 'manager';
+
   const [open, setOpen] = useState(false);
 
   const form = useForm<FormData>({
@@ -51,7 +58,6 @@ export default function CreateSprintModal({
       setOpen(false);
       form.reset();
 
-      // refresh sprint list
       await sprintStore.getProjectSprints(projectId);
     } catch (err: any) {
       toast.error(
@@ -61,10 +67,15 @@ export default function CreateSprintModal({
     }
   };
 
+  // ❌ member হলে কিছুই render করবে না
+  if (!isAdminOrManager) return null;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className='cursor-pointer'>Create Sprint</Button>
+        <Button className="cursor-pointer">
+          Create Sprint
+        </Button>
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-md">
