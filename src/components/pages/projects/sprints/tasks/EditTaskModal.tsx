@@ -6,7 +6,8 @@ import { useSnapshot } from 'valtio';
 import { toast } from 'react-toastify';
 
 import { taskStore } from '@/store/taskStore';
-import { userStore } from '@/store/userStore';
+import { teamStore } from '@/store/teamStore';
+import authStore from '@/store/authStore';
 
 import {
   Dialog,
@@ -45,38 +46,83 @@ export default function EditTaskModal({
   task: any;
   onClose: () => void;
 }) {
-  const usersSnap = useSnapshot(userStore);
+  const teamSnap = useSnapshot(teamStore);
+  const { user } = useSnapshot(authStore);
+
+  const isAdminOrManager =
+    user?.role === 'admin' || user?.role === 'manager';
+  const isMember = user?.role === 'member';
 
   const form = useForm<FormData>({
     defaultValues: {
-      title: task.title,
-      description: task.description,
-      estimateHours: task.estimateHours,
-      priority: task.priority,
-      status: task.status,
-      dueDate: task.dueDate
-        ? task.dueDate.split('T')[0]
-        : '',
-      assignees: task.assignees?.map((u: any) => u._id) || [],
+      title: '',
+      description: '',
+      estimateHours: undefined,
+      priority: 'medium',
+      status: 'todo',
+      dueDate: '',
+      assignees: [],
     },
   });
 
+  /* 🔄 modal open হলে task data reset */
   useEffect(() => {
-    userStore.getAllUsers();
-  }, []);
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      await taskStore.updateTask(task._id, data);
-      toast.success('Task updated successfully');
-      onClose();
-    } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message ||
-          'Failed to update task',
-      );
+    if (open && task) {
+      form.reset({
+        title: task.title ?? '',
+        description: task.description ?? '',
+        estimateHours: task.estimateHours ?? undefined,
+        priority: task.priority ?? 'medium',
+        status: task.status ?? 'todo',
+        dueDate: task.dueDate
+          ? task.dueDate.split('T')[0]
+          : '',
+        assignees: (task.assignees || [])
+          .map((u: any) => u?._id)
+          .filter(Boolean),
+      });
     }
-  };
+  }, [open, task, form]);
+
+  /* 👥 team load only for admin/manager */
+  useEffect(() => {
+    if (open && isAdminOrManager && task?.projectId?._id) {
+      teamStore.getProjectTeam(task.projectId._id);
+    }
+  }, [open, isAdminOrManager, task?.projectId?._id]);
+
+ 
+  const onSubmit = async (data: FormData) => {
+  try {
+    if (isMember && task?.status === 'done') {
+      toast.error('Completed task cannot be updated');
+      return;
+    }
+
+    let payload: any = {};
+
+    if (isAdminOrManager) {
+      payload = {
+        ...data,
+        assignees: (data.assignees || []).filter(Boolean),
+      };
+    }
+
+    if (isMember) {
+      payload = {
+        status: data.status,
+      };
+    }
+
+    await taskStore.updateTask(task._id, payload);
+    toast.success('Task updated successfully');
+    onClose();
+  } catch (err: any) {
+    toast.error(
+      err?.response?.data?.message || 'Failed to update task',
+    );
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -90,49 +136,57 @@ export default function EditTaskModal({
           className="space-y-4"
         >
           {/* TITLE */}
-          <div className="space-y-1">
-            <Label>Title</Label>
-            <Input {...form.register('title', { required: true })} />
-          </div>
+          {isAdminOrManager && (
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <Input {...form.register('title', { required: true })} />
+            </div>
+          )}
 
           {/* DESCRIPTION */}
-          <div className="space-y-1">
-            <Label>Description</Label>
-            <Textarea {...form.register('description')} />
-          </div>
+          {isAdminOrManager && (
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Textarea {...form.register('description')} />
+            </div>
+          )}
 
           {/* ESTIMATE */}
-          <div className="space-y-1">
-            <Label>Estimate Hours</Label>
-            <Input
-              type="number"
-              {...form.register('estimateHours', {
-                valueAsNumber: true,
-              })}
-            />
-          </div>
+          {isAdminOrManager && (
+            <div className="space-y-1">
+              <Label>Estimate Hours</Label>
+              <Input
+                type="number"
+                {...form.register('estimateHours', {
+                  valueAsNumber: true,
+                })}
+              />
+            </div>
+          )}
 
           {/* PRIORITY */}
-          <div className="space-y-1">
-            <Label>Priority</Label>
-            <Select
-              value={form.watch('priority')}
-              onValueChange={(v) =>
-                form.setValue('priority', v as any)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {isAdminOrManager && (
+            <div className="space-y-1">
+              <Label>Priority</Label>
+              <Select
+                value={form.watch('priority')}
+                onValueChange={(v) =>
+                  form.setValue('priority', v as any)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
-          {/* STATUS */}
+          {/* STATUS (everyone, but member no done) */}
           <div className="space-y-1">
             <Label>Status</Label>
             <Select
@@ -150,54 +204,81 @@ export default function EditTaskModal({
                   In Progress
                 </SelectItem>
                 <SelectItem value="review">Review</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
+
+                {isAdminOrManager && (
+                  <SelectItem value="done">Done</SelectItem>
+                )}
               </SelectContent>
             </Select>
+
+            {isMember && (
+              <p className="text-xs text-muted-foreground">
+                Only manager or admin can mark task as done
+              </p>
+            )}
           </div>
 
           {/* DUE DATE */}
-          <div className="space-y-1">
-            <Label>Due Date</Label>
-            <Input type="date" {...form.register('dueDate')} />
-          </div>
+          {isAdminOrManager && (
+            <div className="space-y-1">
+              <Label>Due Date</Label>
+              <Input type="date" {...form.register('dueDate')} />
+            </div>
+          )}
 
           {/* ASSIGNEES */}
-          <div className="space-y-2">
-            <Label>Assignees</Label>
+          {isAdminOrManager && (
+            <div className="space-y-2">
+              <Label>Assignees</Label>
 
-            <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
-              {usersSnap.list.map((user) => (
-                <label
-                  key={user._id}
-                  className="flex items-center gap-2 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form
-                      .watch('assignees')
-                      .includes(user._id)}
-                    onChange={(e) => {
-                      const prev =
-                        form.getValues('assignees');
+              <div className="border rounded p-2 space-y-1 max-h-40 overflow-y-auto">
+                {teamSnap.loading && (
+                  <p className="text-xs text-muted-foreground">
+                    Loading team members...
+                  </p>
+                )}
 
-                      form.setValue(
-                        'assignees',
-                        e.target.checked
-                          ? [...prev, user._id]
-                          : prev.filter(
-                              (id) => id !== user._id,
-                            ),
-                      );
-                    }}
-                  />
-                  {user.name}{' '}
-                  <span className="text-muted-foreground">
-                    ({user.role})
-                  </span>
-                </label>
-              ))}
+                {!teamSnap.loading &&
+                  teamSnap.list.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No team members found
+                    </p>
+                  )}
+
+                {teamSnap.list.map((team) => (
+                  <label
+                    key={team._id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form
+                        .watch('assignees')
+                        .includes(team.userId._id)}
+                      onChange={(e) => {
+                        const prev =
+                          form.getValues('assignees') || [];
+                        form.setValue(
+                          'assignees',
+                          e.target.checked
+                            ? [...prev, team.userId._id]
+                            : prev.filter(
+                                (id) => id !== team.userId._id,
+                              ),
+                        );
+                      }}
+                    />
+                    <span>
+                      {team.userId.name}{' '}
+                      <span className="text-muted-foreground">
+                        ({team.role})
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <Button type="submit" className="w-full">
             Save Changes

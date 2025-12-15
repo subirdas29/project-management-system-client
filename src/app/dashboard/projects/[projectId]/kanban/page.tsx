@@ -3,11 +3,13 @@
 import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSnapshot } from 'valtio';
+import { toast } from 'react-toastify';
 
 import { DndContext, DragEndEvent } from '@dnd-kit/core';
 
 import { taskStore } from '@/store/taskStore';
 import projectStore from '@/store/projectStore';
+import authStore from '@/store/authStore';
 
 import KanbanColumn from '@/components/pages/projects/kanban/KanbanColumn';
 import { Button } from '@/components/ui/button';
@@ -25,42 +27,87 @@ export default function KanbanPage() {
 
   const taskSnap = useSnapshot(taskStore);
   const projectSnap = useSnapshot(projectStore);
+  const { user } = useSnapshot(authStore);
 
+  /* ===============================
+     INITIAL DATA LOAD
+  =============================== */
   useEffect(() => {
     projectStore.getSingleProject(projectId);
 
-   
     taskStore.setTableFilters({ projectId });
     taskStore.getTasksTable();
   }, [projectId]);
 
- const handleDragEnd = async (event: DragEndEvent) => {
-  const { active, over } = event;
-  if (!over) return;
+  /* ===============================
+     ROLE-WISE DRAG CONTROL
+  =============================== */
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
 
-  const taskId = active.id as string;
-  const newStatus = over.id as string;
+    const taskId = active.id as string;
+    const fromStatus = active.data.current?.status;
+    const toStatus = over.id as string;
 
-  if (active.data.current?.status === newStatus) return;
+    if (fromStatus === toStatus) return;
 
-  try {
-    await taskStore.updateTaskStatus(taskId, newStatus);
-    taskStore.getTasksTable(); 
-  } catch {
-    taskStore.getTasksTable(); 
-  }
-};
+    // 🔒 MEMBER RULES
+    if (user?.role === 'member') {
+      if (fromStatus === 'review' && toStatus === 'done') {
+        toast.error(
+          'Only manager or admin can mark a task as done',
+        );
+        return;
+      }
 
+      if (fromStatus === 'todo' && toStatus === 'done') {
+        toast.error(
+          'You must move the task to review first',
+        );
+        return;
+      }
+    }
 
-  const tasks = taskSnap.table.data;
-
-  const tasksByStatus = {
-    todo: tasks.filter((t) => t.status === 'todo'),
-    inprogress: tasks.filter((t) => t.status === 'inprogress'),
-    review: tasks.filter((t) => t.status === 'review'),
-    done: tasks.filter((t) => t.status === 'done'),
+    try {
+      await taskStore.updateTaskStatus(taskId, toStatus);
+      taskStore.getTasksTable();
+    } catch {
+      taskStore.getTasksTable();
+    }
   };
 
+  /* ===============================
+     ROLE-WISE TASK VISIBILITY
+  =============================== */
+  const allTasks = taskSnap.table.data || [];
+  const loggedInUserId = user?._id;
+
+  const visibleTasks =
+    user?.role === 'member'
+      ? allTasks.filter((task) =>
+          task.assignees?.some(
+            (u: any) =>
+              (typeof u === 'string' ? u : u._id) ===
+              loggedInUserId,
+          ),
+        )
+      : allTasks;
+
+  const tasksByStatus = {
+    todo: visibleTasks.filter((t) => t.status === 'todo'),
+    inprogress: visibleTasks.filter(
+      (t) => t.status === 'inprogress',
+    ),
+    review: visibleTasks.filter(
+      (t) => t.status === 'review',
+    ),
+    done: visibleTasks.filter((t) => t.status === 'done'),
+  };
+
+  /* ===============================
+     UI
+  =============================== */
   return (
     <div className="space-y-4">
       {/* HEADER */}
@@ -72,7 +119,9 @@ export default function KanbanPage() {
         <Button
           variant="outline"
           onClick={() =>
-            router.push(`/dashboard/projects/${projectId}/sprints`)
+            router.push(
+              `/dashboard/projects/${projectId}/sprints`,
+            )
           }
         >
           ← Back to Sprints
@@ -92,6 +141,14 @@ export default function KanbanPage() {
           ))}
         </div>
       </DndContext>
+
+      {/* EMPTY STATE FOR MEMBER */}
+      {user?.role === 'member' &&
+        visibleTasks.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center pt-4">
+            You have no tasks assigned in this project
+          </p>
+        )}
     </div>
   );
 }

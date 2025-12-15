@@ -1,5 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useSnapshot } from 'valtio';
+import { sprintStore } from '@/store/sprintStore';
+
 import {
   Dialog,
   DialogContent,
@@ -10,13 +14,24 @@ import { Progress } from '@/components/ui/progress';
 
 export default function SprintDetailsModal({
   open,
-  sprint,
+  sprintId,
   onClose,
 }: {
   open: boolean;
-  sprint: any;
+  sprintId: string;
   onClose: () => void;
 }) {
+  const snap = useSnapshot(sprintStore);
+
+  useEffect(() => {
+    if (open && sprintId) {
+      sprintStore.getSprintDetails(sprintId);
+    }
+  }, [open, sprintId]);
+
+  const sprint = snap.single.data;
+  if (!sprint) return null;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
@@ -39,15 +54,15 @@ export default function SprintDetailsModal({
 
           <p>
             <strong>Total Tasks:</strong>{' '}
-            {sprint.totalTasks || 0}
+            {sprint.totalTasks}
           </p>
 
           <p>
             <strong>Completed:</strong>{' '}
-            {sprint.completedTasks || 0}
+            {sprint.completedTasks}
           </p>
 
-          <Progress value={sprint.progress || 0} />
+          <Progress value={sprint.progress} />
         </div>
       </DialogContent>
     </Dialog>

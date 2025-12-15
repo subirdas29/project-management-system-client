@@ -6,7 +6,7 @@ import { useSnapshot } from 'valtio';
 import { toast } from 'react-toastify';
 
 import { taskStore } from '@/store/taskStore';
-import { userStore } from '@/store/userStore';
+import { teamStore } from '@/store/teamStore';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -39,11 +39,15 @@ type FormData = {
 
 export default function CreateTaskModal({
   sprintId,
+  projectId,
 }: {
   sprintId: string;
+  projectId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const usersSnap = useSnapshot(userStore);
+  const teamSnap = useSnapshot(teamStore);
+
+
 
   const form = useForm<FormData>({
     defaultValues: {
@@ -57,9 +61,12 @@ export default function CreateTaskModal({
     },
   });
 
+
   useEffect(() => {
-    userStore.getAllUsers();
-  }, []);
+    if (open && projectId) {
+      teamStore.getProjectTeam(projectId);
+    }
+  }, [open, projectId]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -96,16 +103,19 @@ export default function CreateTaskModal({
           onSubmit={form.handleSubmit(onSubmit)}
           className="space-y-4"
         >
+          {/* Title */}
           <div>
             <Label>Title</Label>
             <Input {...form.register('title', { required: true })} />
           </div>
 
+          {/* Description */}
           <div>
             <Label>Description</Label>
             <Textarea {...form.register('description')} />
           </div>
 
+          {/* Estimate */}
           <div>
             <Label>Estimate (hours)</Label>
             <Input
@@ -116,6 +126,7 @@ export default function CreateTaskModal({
             />
           </div>
 
+          {/* Priority */}
           <div>
             <Label>Priority</Label>
             <Select
@@ -124,7 +135,9 @@ export default function CreateTaskModal({
                 form.setValue('priority', v as any)
               }
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="low">Low</SelectItem>
                 <SelectItem value="medium">Medium</SelectItem>
@@ -133,6 +146,7 @@ export default function CreateTaskModal({
             </Select>
           </div>
 
+          {/* Status */}
           <div>
             <Label>Status</Label>
             <Select
@@ -141,7 +155,9 @@ export default function CreateTaskModal({
                 form.setValue('status', v as any)
               }
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todo">To Do</SelectItem>
                 <SelectItem value="inprogress">In Progress</SelectItem>
@@ -151,33 +167,59 @@ export default function CreateTaskModal({
             </Select>
           </div>
 
+          {/* Due Date */}
           <div>
             <Label>Due Date</Label>
             <Input type="date" {...form.register('dueDate')} />
           </div>
 
+
           <div>
             <Label>Assign Users</Label>
+
             <div className="border rounded p-2 max-h-40 overflow-auto space-y-1">
-              {usersSnap.list.map((user) => (
+              {teamSnap.loading && (
+                <p className="text-xs text-muted-foreground">
+                  Loading team members...
+                </p>
+              )}
+
+              {!teamSnap.loading &&
+                teamSnap.list.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No team members found for this project
+                  </p>
+                )}
+
+              {teamSnap.list.map((team) => (
                 <label
-                  key={user._id}
+                  key={team._id}
                   className="flex items-center gap-2 text-sm"
                 >
                   <input
                     type="checkbox"
-                    checked={form.watch('assignees').includes(user._id)}
+                    checked={form
+                      .watch('assignees')
+                      .includes(team.userId._id)}
                     onChange={(e) => {
                       const prev = form.getValues('assignees');
                       form.setValue(
                         'assignees',
                         e.target.checked
-                          ? [...prev, user._id]
-                          : prev.filter((id) => id !== user._id),
+                          ? [...prev, team.userId._id]
+                          : prev.filter(
+                              (id) =>
+                                id !== team.userId._id,
+                            ),
                       );
                     }}
                   />
-                  {user.name} ({user.role})
+                  <span>
+                    {team.userId.name}{' '}
+                    <span className="text-muted-foreground">
+                      ({team.role})
+                    </span>
+                  </span>
                 </label>
               ))}
             </div>
